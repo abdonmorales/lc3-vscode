@@ -1,0 +1,89 @@
+{
+  "name": "lc3-assembly",
+  "displayName": "LC-3 Assembly Language",
+  "description": "Full-featured LC-3 assembly language support: syntax highlighting, hover docs, autocomplete, diagnostics, and snippets — based on the Patt & Patel textbook ISA.",
+  "version": "1.0.0",
+  "publisher": "ece306",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters",
+    "Education"
+  ],
+  "keywords": [
+    "lc-3",
+    "lc3",
+    "assembly",
+    "ece306",
+    "patt",
+    "computer architecture"
+  ],
+  "activationEvents": [
+    "onLanguage:lc3"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "lc3",
+        "aliases": [
+          "LC-3 Assembly",
+          "lc3",
+          "LC3"
+        ],
+        "extensions": [
+          ".asm",
+          ".lc3",
+          ".s"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "lc3",
+        "scopeName": "source.lc3",
+        "path": "./syntaxes/lc3.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "lc3",
+        "path": "./snippets/lc3.json"
+      }
+    ],
+    "configuration": {
+      "title": "LC-3 Assembly",
+      "properties": {
+        "lc3.diagnostics.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time diagnostics and error checking."
+        },
+        "lc3.diagnostics.warnUnusedLabels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn about labels that are defined but never referenced."
+        },
+        "lc3.hover.showEncoding": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show binary encoding format in hover tooltips."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.0.0"
+  }
+}

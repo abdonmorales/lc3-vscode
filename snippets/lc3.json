@@ -1,0 +1,193 @@
+{
+  "Program Template": {
+    "prefix": "program",
+    "body": [
+      "; ${1:Program description}",
+      ";",
+      ".ORIG ${2:x3000}",
+      "",
+      "${0:; Your code here}",
+      "",
+      "HALT",
+      "",
+      "; Data section",
+      "",
+      ".END"
+    ],
+    "description": "Complete LC-3 program template with .ORIG, HALT, and .END"
+  },
+  "Subroutine Template": {
+    "prefix": "subroutine",
+    "body": [
+      "; Subroutine: ${1:NAME}",
+      "; Input:  ${2:R0}",
+      "; Output: ${3:R0}",
+      "; Modifies: ${4:none}",
+      "${1} ST R7, ${1}_R7  ; Save return address",
+      "     ${0:; subroutine body}",
+      "     LD R7, ${1}_R7  ; Restore return address",
+      "     RET",
+      "${1}_R7 .BLKW 1"
+    ],
+    "description": "Subroutine with R7 save/restore"
+  },
+  "Counter Loop": {
+    "prefix": "loop_counter",
+    "body": [
+      "AND ${1:R1}, ${1}, #0     ; Clear counter",
+      "ADD ${1}, ${1}, #${2:10}  ; Set loop count",
+      "${3:LOOP} ${0:; loop body}",
+      "     ADD ${1}, ${1}, #-1  ; Decrement counter",
+      "     BRp ${3}             ; Loop while positive"
+    ],
+    "description": "Counter-controlled loop (decrement to zero)"
+  },
+  "Sentinel Loop": {
+    "prefix": "loop_sentinel",
+    "body": [
+      "${1:LOOP} LDR ${2:R1}, ${3:R0}, #0  ; Load current value",
+      "     BRz ${4:DONE}                    ; Exit if sentinel (zero)",
+      "     ${0:; process value}",
+      "     ADD ${3}, ${3}, #1               ; Advance pointer",
+      "     BRnzp ${1}                       ; Continue loop",
+      "${4}"
+    ],
+    "description": "Sentinel-controlled loop (exits on zero)"
+  },
+  "Two's Complement Negation": {
+    "prefix": "negate",
+    "body": [
+      "NOT ${1:R1}, ${2:R0}  ; Negate: ${1} = -${2}",
+      "ADD ${1}, ${1}, #1    ; Complete two's complement"
+    ],
+    "description": "Two's complement negation: NOT + ADD #1"
+  },
+  "Clear Register": {
+    "prefix": "clear",
+    "body": [
+      "AND ${1:R0}, ${1}, #0  ; Clear ${1}"
+    ],
+    "description": "Clear a register to zero using AND with immediate 0"
+  },
+  "Push to Stack": {
+    "prefix": "push",
+    "body": [
+      "ADD R6, R6, #-1    ; Decrement stack pointer",
+      "STR ${1:R0}, R6, #0  ; Push ${1} onto stack"
+    ],
+    "description": "Push a register onto the stack (R6 = stack pointer)"
+  },
+  "Pop from Stack": {
+    "prefix": "pop",
+    "body": [
+      "LDR ${1:R0}, R6, #0  ; Pop top of stack into ${1}",
+      "ADD R6, R6, #1       ; Increment stack pointer"
+    ],
+    "description": "Pop top of stack into a register (R6 = stack pointer)"
+  },
+  "Save and Restore Callee-Save": {
+    "prefix": "callee_save",
+    "body": [
+      "; Save registers",
+      "ST R7, SAVE_R7",
+      "ST ${1:R1}, SAVE_${1}",
+      "ST ${2:R2}, SAVE_${2}",
+      "",
+      "${0:; subroutine body}",
+      "",
+      "; Restore registers",
+      "LD ${2}, SAVE_${2}",
+      "LD ${1}, SAVE_${1}",
+      "LD R7, SAVE_R7",
+      "RET",
+      "",
+      "SAVE_R7 .BLKW 1",
+      "SAVE_${1} .BLKW 1",
+      "SAVE_${2} .BLKW 1"
+    ],
+    "description": "Callee-save register pattern for subroutines"
+  },
+  "String Output": {
+    "prefix": "print_string",
+    "body": [
+      "LEA R0, ${1:MSG}  ; Load address of string",
+      "PUTS               ; Print string to console",
+      "",
+      "${1} .STRINGZ \"${2:Hello, world!}\""
+    ],
+    "description": "Print a null-terminated string using PUTS (TRAP x22)"
+  },
+  "Character Input": {
+    "prefix": "getchar",
+    "body": [
+      "GETC    ; Read character into R0 (no echo)",
+      "OUT     ; Echo character to console"
+    ],
+    "description": "Read and echo a single character"
+  },
+  "Polling Input Loop": {
+    "prefix": "poll_input",
+    "body": [
+      "${1:POLL} LDI ${2:R0}, KBSR",
+      "     BRzp ${1}         ; Wait until key is pressed",
+      "     LDI ${2}, KBDR    ; Read character",
+      "",
+      "KBSR .FILL xFE00",
+      "KBDR .FILL xFE02"
+    ],
+    "description": "Polling loop for keyboard input via KBSR/KBDR"
+  },
+  "Polling Output Loop": {
+    "prefix": "poll_output",
+    "body": [
+      "${1:POLL_OUT} LDI ${2:R1}, DSR",
+      "     BRzp ${1}          ; Wait until display is ready",
+      "     STI ${3:R0}, DDR   ; Write character",
+      "",
+      "DSR .FILL xFE04",
+      "DDR .FILL xFE06"
+    ],
+    "description": "Polling loop for display output via DSR/DDR"
+  },
+  "If-Else Pattern": {
+    "prefix": "if_else",
+    "body": [
+      "; if (${1:R0} ${2:> 0})",
+      "ADD ${1}, ${1}, #0   ; Set condition codes",
+      "BR${3:nz} ${4:ELSE}  ; Branch to else",
+      "  ${5:; then-block}",
+      "  BRnzp ${6:ENDIF}",
+      "${4} ${7:; else-block}",
+      "${6}"
+    ],
+    "description": "If-else conditional pattern"
+  },
+  "Multiply by Repeated Addition": {
+    "prefix": "multiply",
+    "body": [
+      "; ${3:R2} = ${1:R0} * ${2:R1}  (R1 must be >= 0)",
+      "AND ${3}, ${3}, #0       ; Clear accumulator",
+      "${4:MUL_LOOP} ADD ${2}, ${2}, #0  ; Test multiplier",
+      "     BRz ${5:MUL_DONE}",
+      "     ADD ${3}, ${3}, ${1} ; accumulator += multiplicand",
+      "     ADD ${2}, ${2}, #-1  ; multiplier--",
+      "     BRnzp ${4}",
+      "${5}"
+    ],
+    "description": "Multiply two values via repeated addition"
+  },
+  "OR via De Morgan": {
+    "prefix": "or_demorgan",
+    "body": [
+      "; ${3:R2} = ${1:R0} OR ${2:R1}  (De Morgan's: OR = NOT(NOT(a) AND NOT(b)))",
+      "NOT ${1}, ${1}",
+      "NOT ${2}, ${2}",
+      "AND ${3}, ${1}, ${2}",
+      "NOT ${3}, ${3}",
+      "; NOTE: ${1} and ${2} are now inverted — restore if needed",
+      "NOT ${1}, ${1}",
+      "NOT ${2}, ${2}"
+    ],
+    "description": "Bitwise OR using De Morgan's law: NOT(NOT a AND NOT b)"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LC-3 Assembly",
+  "scopeName": "source.lc3",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#pseudo-ops" },
+    { "include": "#trap-aliases" },
+    { "include": "#branch-instructions" },
+    { "include": "#instructions" },
+    { "include": "#registers" },
+    { "include": "#numbers" },
+    { "include": "#labels" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.lc3",
+          "match": ";.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.lc3",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.lc3",
+              "match": "\\\\[nrt\\\\\"0]"
+            }
+          ]
+        }
+      ]
+    },
+    "pseudo-ops": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.lc3",
+          "match": "(?i)\\.(ORIG|END|FILL|BLKW|STRINGZ|EXTERNAL)\\b"
+        }
+      ]
+    },
+    "trap-aliases": {
+      "patterns": [
+        {
+          "name": "support.function.trap.lc3",
+          "match": "(?i)\\b(HALT|GETC|OUT|PUTS|IN|PUTSP)\\b"
+        }
+      ]
+    },
+    "branch-instructions": {
+      "patterns": [
+        {
+          "name": "keyword.control.branch.lc3",
+          "match": "(?i)\\b(BR(n?z?p?)?|BRnzp)\\b"
+        }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.lc3",
+          "match": "(?i)\\b(ADD|AND|NOT)\\b"
+        },
+        {
+          "name": "keyword.operator.memory.lc3",
+          "match": "(?i)\\b(LD|LDI|LDR|LEA|ST|STI|STR)\\b"
+        },
+        {
+          "name": "keyword.control.flow.lc3",
+          "match": "(?i)\\b(JMP|JSR|JSRR|RET|RTI|TRAP)\\b"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        {
+          "name": "variable.language.register.lc3",
+          "match": "(?i)\\bR[0-7]\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.lc3",
+          "match": "(?i)\\b[x#]?x[0-9A-Fa-f]+\\b|(?<=[, \\t])x[0-9A-Fa-f]+\\b"
+        },
+        {
+          "name": "constant.numeric.hex.lc3",
+          "match": "(?i)(?<=\\.ORIG\\s+)x[0-9A-Fa-f]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.lc3",
+          "match": "#-?[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.lc3",
+          "match": "(?i)\\bb[01]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.plain.lc3",
+          "match": "(?<=\\.FILL\\s+)-?[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.plain.lc3",
+          "match": "(?<=\\.BLKW\\s+)[0-9]+\\b"
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.function.label.lc3",
+          "match": "^[A-Za-z_][A-Za-z0-9_]*"
+        },
+        {
+          "name": "variable.other.label.lc3",
+          "match": "(?<=[, \\t])[A-Za-z_][A-Za-z0-9_]*(?=\\s*[;\\s]*$|\\s*,)"
+        }
+      ]
+    }
+  }
+}
