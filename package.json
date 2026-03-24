@@ -79,11 +79,15 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "TS_NODE_PROJECT=tsconfig.test.json mocha --require ts-node/register 'src/test/**/*.test.ts'"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.0",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.75.0",
+    "mocha": "^10.0.0",
+    "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   }
 }

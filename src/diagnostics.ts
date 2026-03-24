@@ -1,4 +1,11 @@
 import * as vscode from "vscode";
+import {
+  VALID_OPCODES,
+  PSEUDO_OPS,
+  ParsedLine,
+  parseLine,
+  parseImmediate,
+} from "./parser";
 
 /**
  * LC-3 Diagnostics Provider
@@ -11,26 +18,6 @@ import * as vscode from "vscode";
  *   - AND with label operand (register mode only)
  *   - offset6 out of range for LDR/STR
  */
-
-const VALID_OPCODES = new Set([
-  "ADD", "AND", "NOT",
-  "LD", "LDI", "LDR", "LEA",
-  "ST", "STI", "STR",
-  "BR", "BRN", "BRZ", "BRP", "BRNZ", "BRNP", "BRZP", "BRNZP",
-  "JMP", "JSR", "JSRR", "RET", "RTI",
-  "TRAP",
-  "HALT", "GETC", "OUT", "PUTS", "IN", "PUTSP",
-]);
-
-const PSEUDO_OPS = new Set([".ORIG", ".END", ".FILL", ".BLKW", ".STRINGZ", ".EXTERNAL"]);
-
-interface ParsedLine {
-  lineIndex: number;
-  label?: string;
-  opcode?: string;
-  operands: string[];
-  raw: string;
-}
 
 export function createDiagnostics(
   document: vscode.TextDocument,
@@ -271,23 +258,6 @@ function validateRegister(token: string, lineIdx: number, diags: vscode.Diagnost
   }
 }
 
-function parseImmediate(token: string): number | null {
-  const t = token.trim();
-  if (t.startsWith("#")) {
-    const v = parseInt(t.substring(1), 10);
-    return isNaN(v) ? null : v;
-  }
-  if (t.toUpperCase().startsWith("X")) {
-    const v = parseInt(t.substring(1), 16);
-    return isNaN(v) ? null : v;
-  }
-  if (t.toUpperCase().startsWith("B")) {
-    const v = parseInt(t.substring(1), 2);
-    return isNaN(v) ? null : v;
-  }
-  const v = parseInt(t, 10);
-  return isNaN(v) ? null : v;
-}
 
 function addDiag(
   diags: vscode.Diagnostic[],
@@ -300,7 +270,7 @@ function addDiag(
   diags.push(new vscode.Diagnostic(range, message, severity));
 }
 
-// ── Line parser ─────────────────────────────────────────────────────
+// ── Line parser (delegates to parser.ts) ────────────────────────────
 
 function parseAllLines(doc: vscode.TextDocument): ParsedLine[] {
   const results: ParsedLine[] = [];
@@ -309,53 +279,4 @@ function parseAllLines(doc: vscode.TextDocument): ParsedLine[] {
     results.push(parseLine(raw, i));
   }
   return results;
-}
-
-function parseLine(raw: string, lineIndex: number): ParsedLine {
-  // Remove comment
-  const commentIdx = raw.indexOf(";");
-  let code = commentIdx >= 0 ? raw.substring(0, commentIdx) : raw;
-  code = code.trim();
-
-  if (!code) return { lineIndex, operands: [], raw };
-
-  let label: string | undefined;
-  let opcode: string | undefined;
-  let operands: string[] = [];
-
-  // Handle .STRINGZ specially (operand is a quoted string)
-  const stringzMatch = code.match(/^([A-Za-z_]\w*)?\s*(\.\s*STRINGZ)\s+(.*)/i);
-  if (stringzMatch) {
-    label = stringzMatch[1] || undefined;
-    opcode = ".STRINGZ";
-    operands = stringzMatch[3] ? [stringzMatch[3].trim()] : [];
-    return { lineIndex, label, opcode, operands, raw };
-  }
-
-  // Tokenize
-  const tokens = code.split(/[\s,]+/).filter((t) => t.length > 0);
-  if (tokens.length === 0) return { lineIndex, operands: [], raw };
-
-  let idx = 0;
-
-  // Check if first token is a pseudo-op, opcode, or label
-  const first = tokens[0].toUpperCase();
-  if (first.startsWith(".") || VALID_OPCODES.has(first) || first.startsWith("BR")) {
-    opcode = tokens[0];
-    idx = 1;
-  } else {
-    // First token is a label
-    label = tokens[0];
-    idx = 1;
-    if (idx < tokens.length) {
-      const second = tokens[idx].toUpperCase();
-      if (second.startsWith(".") || VALID_OPCODES.has(second) || second.startsWith("BR")) {
-        opcode = tokens[idx];
-        idx++;
-      }
-    }
-  }
-
-  operands = tokens.slice(idx);
-  return { lineIndex, label, opcode, operands, raw };
 }
