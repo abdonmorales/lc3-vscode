@@ -2,7 +2,7 @@
   "name": "lc3-assembly",
   "displayName": "LC-3 Assembly Language",
   "description": "Full-featured LC-3 assembly language support: syntax highlighting, hover docs, autocomplete, diagnostics, and snippets — based on the Patt & Patel textbook ISA.",
-  "version": "1.0.0-beta",
+  "version": "1.0.1-beta",
   "publisher": "ece306",
   "engines": {
     "vscode": "^1.75.0"
@@ -25,6 +25,7 @@
     "onLanguage:lc3"
   ],
   "main": "./out/extension.js",
+  "extensionKind": ["workspace"],
   "contributes": {
     "languages": [
       {
