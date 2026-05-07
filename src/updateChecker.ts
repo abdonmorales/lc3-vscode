@@ -100,30 +100,12 @@ export async function checkForUpdates(context: vscode.ExtensionContext): Promise
 // }
 
 // ═══════════════════════════════════════════════════════════════════
-//  OPTION 3 (DEAD CODE) — Open VSX Registry
+//  OPTION 3 (ACTIVE via release.yml) — Open VSX Registry
 //
-//  open-vsx.org is the open-source, vendor-neutral alternative to
-//  the Microsoft marketplace. Publishing there is free and gives
-//  real auto-updates without hosting your own server.
-//
-//  Trade-off: the extension becomes publicly visible. Fine for an
-//  educational tool; not ideal if you want strict internal access.
-//
-//  To activate:
-//    1. Create an account at https://open-vsx.org
-//    2. Generate an access token.
-//    3. Add the publish step below to release.yml (replace the
-//       existing "Attach VSIX to release" step, or add it after):
-//
-//  ─────────────────────────────────────────────────────────────────
-//  - name: Publish to Open VSX
-//    env:
-//      OVSX_PAT: ${{ secrets.OVSX_PAT }}
-//    run: npx ovsx publish *.vsix -p $OVSX_PAT
-//  ─────────────────────────────────────────────────────────────────
-//
-//  Students using VSCodium (or standard VS Code pointed at Open VSX)
-//  get auto-updates for free — no manual .vsix installs needed.
+//  Published automatically by the "Publish to Open VSX" step in
+//  .github/workflows/release.yml when an OVSX_PAT repo secret is set.
+//  Students on VSCodium (or VS Code pointed at Open VSX) get native
+//  auto-updates; everyone else falls back to Option 1's nudge.
 //
 //  Docs: https://github.com/eclipse/openvsx/wiki/Publishing-Extensions
 //
