@@ -8,11 +8,15 @@ import {
   InstructionInfo,
 } from "./instructionReference";
 import { createDiagnostics } from "./diagnostics";
+import { checkForUpdates } from "./updateChecker";
 
 const LC3_SELECTOR: vscode.DocumentSelector = { language: "lc3", scheme: "file" };
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("LC-3 Assembly extension activated");
+
+  // Check for updates once per day (Option 1 — GitHub Releases)
+  checkForUpdates(context);
 
   // ═══════════════════════════════════════════════════════════════
   //  HOVER PROVIDER

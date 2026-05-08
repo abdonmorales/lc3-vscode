@@ -32,6 +32,8 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -64,3 +66,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" *.vsix --clobber
+
+      - name: Publish to Open VSX
+        if: github.event_name == 'release' && env.OVSX_PAT != ''
+        run: npx ovsx publish *.vsix -p "$OVSX_PAT"
