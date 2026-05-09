@@ -25,11 +25,54 @@
     "computer-architecture"
   ],
   "activationEvents": [
-    "onLanguage:lc3"
+    "onLanguage:lc3",
+    "onCommand:lc3.newLabFile",
+    "onCommand:lc3.assembleCurrent",
+    "onCommand:lc3.runCurrent",
+    "onCommand:lc3.toggleHonorCode"
   ],
   "main": "./out/extension.js",
   "extensionKind": ["workspace"],
   "contributes": {
+    "commands": [
+      {
+        "command": "lc3.newLabFile",
+        "title": "ECE 306: New Lab File",
+        "category": "LC-3"
+      },
+      {
+        "command": "lc3.assembleCurrent",
+        "title": "Assemble Current File (lc3as)",
+        "category": "LC-3"
+      },
+      {
+        "command": "lc3.runCurrent",
+        "title": "Run Current File (lc3sim)",
+        "category": "LC-3"
+      },
+      {
+        "command": "lc3.toggleHonorCode",
+        "title": "Insert UT Honor Code Block",
+        "category": "LC-3"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "lc3",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "type": "string",
+            "enum": ["assemble", "run"],
+            "description": "Which lc3tools action to perform."
+          },
+          "file": {
+            "type": "string",
+            "description": "Path to the .asm file (defaults to the active editor)."
+          }
+        }
+      }
+    ],
     "languages": [
       {
         "id": "lc3",
@@ -72,10 +115,41 @@
           "default": true,
           "description": "Warn about labels that are defined but never referenced."
         },
+        "lc3.diagnostics.warnPCRelativeOverflow": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when a BR/LD/LDI/LEA/ST/STI/JSR target is too far away to fit in the PC-relative offset field. (Off-by-default to defer to lc3as if you prefer that workflow.)"
+        },
         "lc3.hover.showEncoding": {
           "type": "boolean",
           "default": true,
           "description": "Show binary encoding format in hover tooltips."
+        },
+        "lc3.lc3tools.binPath": {
+          "type": "string",
+          "default": "",
+          "description": "Directory containing lc3as and lc3sim (or the lc3tools CLI). Leave empty to use whatever is on PATH."
+        },
+        "lc3.lc3tools.useGUI": {
+          "type": "boolean",
+          "default": false,
+          "description": "When running, prefer the lc3-tools GUI simulator (lc3sim-gui) over the terminal simulator (lc3sim)."
+        },
+        "lc3.honorCode.text": {
+          "type": "string",
+          "default": "; By submitting this file I affirm that I have neither given nor received\n; unauthorized aid on this assignment, in accordance with The University of\n; Texas at Austin Honor Code.",
+          "description": "Text inserted by the 'Insert UT Honor Code Block' command."
+        },
+        "lc3.honorCode.promptOnFirstSave": {
+          "type": "string",
+          "enum": ["off", "ask", "always"],
+          "enumDescriptions": [
+            "Never prompt. Students/instructors run the 'Insert UT Honor Code Block' command manually.",
+            "On the first save of a .asm in a workspace, ask whether to insert the block at the top.",
+            "Insert the block automatically on the first save of any .asm without prompting."
+          ],
+          "default": "off",
+          "description": "Behavior on the first save of an LC-3 file in a workspace. Off by default — labs that don't use this fork's honor-code prompt aren't affected."
         }
       }
     }
