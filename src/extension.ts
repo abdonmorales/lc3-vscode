@@ -9,8 +9,15 @@ import {
 } from "./instructionReference";
 import { createDiagnostics } from "./diagnostics";
 import { checkForUpdates } from "./updateChecker";
+import { DEVICE_REGISTERS, lookupDeviceRegister } from "./deviceRegisters";
+import { parseImmediate } from "./parser";
+import { formatNumericLiteralHover } from "./numericHover";
+import { newLabFileCommand } from "./labTemplate";
+import { lc3TaskProvider, assembleCommand, runCommand } from "./lc3toolsTasks";
+import { toggleHonorCodeCommand, registerHonorCodePromptHook } from "./honorCode";
 
 const LC3_SELECTOR: vscode.DocumentSelector = { language: "lc3", scheme: "file" };
+const IMMEDIATE_PATTERN = /#-?\d+|[xX][0-9A-Fa-f]+|[bB][01]+/;
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("LC-3 Assembly extension activated");
@@ -18,18 +25,37 @@ export function activate(context: vscode.ExtensionContext) {
   // Check for updates once per day (Option 1 — GitHub Releases)
   checkForUpdates(context);
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  HOVER PROVIDER
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const hoverProvider = vscode.languages.registerHoverProvider(LC3_SELECTOR, {
     provideHover(document, position) {
+      // 1. Numeric immediate at cursor (e.g. #-7, x3000, b1010) — show
+      //    decimal/hex/binary breakdown plus encoding-field fit checks.
+      const immRange = document.getWordRangeAtPosition(position, IMMEDIATE_PATTERN);
+      if (immRange) {
+        const tok = document.getText(immRange);
+        const val = parseImmediate(tok);
+        if (val !== null) {
+          return new vscode.Hover(formatNumericLiteralHover(tok, val), immRange);
+        }
+      }
+
       const wordRange = document.getWordRangeAtPosition(position, /\.?[A-Za-z_]\w*/);
       if (!wordRange) return undefined;
 
       const word = document.getText(wordRange).toUpperCase();
 
-      // Check for register hover
+      // 2. Device-register hover (KBSR, KBDR, DSR, DDR, MCR)
+      const deviceReg = lookupDeviceRegister(word);
+      if (deviceReg) {
+        const md = new vscode.MarkdownString(deviceReg.description);
+        md.isTrusted = true;
+        return new vscode.Hover(md, wordRange);
+      }
+
+      // 3. General-purpose register hover
       if (/^R[0-7]$/.test(word)) {
         const regNum = word.charAt(1);
         const md = new vscode.MarkdownString();
@@ -54,9 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
     },
   });
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  COMPLETION PROVIDER
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const completionProvider = vscode.languages.registerCompletionItemProvider(
     LC3_SELECTOR,
@@ -108,6 +134,14 @@ export function activate(context: vscode.ExtensionContext) {
           items.push(item);
         }
 
+        // Memory-mapped device registers (KBSR/KBDR/DSR/DDR/MCR)
+        for (const dev of DEVICE_REGISTERS) {
+          const item = new vscode.CompletionItem(dev.name, vscode.CompletionItemKind.Constant);
+          item.detail = dev.brief;
+          item.documentation = new vscode.MarkdownString(dev.description);
+          items.push(item);
+        }
+
         // Collect labels from the document for autocomplete
         for (let i = 0; i < document.lineCount; i++) {
           const line = document.lineAt(i).text;
@@ -133,9 +167,9 @@ export function activate(context: vscode.ExtensionContext) {
     ".", // Trigger on "." for pseudo-ops
   );
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  SIGNATURE HELP PROVIDER
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const signatureProvider = vscode.languages.registerSignatureHelpProvider(
     LC3_SELECTOR,
@@ -171,9 +205,9 @@ export function activate(context: vscode.ExtensionContext) {
     " "
   );
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  DIAGNOSTICS
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const diagnosticCollection = vscode.languages.createDiagnosticCollection("lc3");
 
@@ -196,9 +230,9 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  DOCUMENT SYMBOL PROVIDER (label outline)
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const symbolProvider = vscode.languages.registerDocumentSymbolProvider(
     LC3_SELECTOR,
@@ -231,9 +265,9 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  DEFINITION PROVIDER (Go to Definition for labels)
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const definitionProvider = vscode.languages.registerDefinitionProvider(
     LC3_SELECTOR,
@@ -260,9 +294,9 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  REFERENCE PROVIDER (Find All References for labels)
-  // ═══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
 
   const referenceProvider = vscode.languages.registerReferenceProvider(
     LC3_SELECTOR,
@@ -293,6 +327,27 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // ══════════════════════════════════════════════════════════════
+  //  COMMANDS (UT-internal additions)
+  // ══════════════════════════════════════════════════════════════
+
+  const newLabFile = vscode.commands.registerCommand("lc3.newLabFile", newLabFileCommand);
+  const assemble = vscode.commands.registerCommand("lc3.assembleCurrent", assembleCommand);
+  const run = vscode.commands.registerCommand("lc3.runCurrent", runCommand);
+  const honorCode = vscode.commands.registerCommand("lc3.toggleHonorCode", toggleHonorCodeCommand);
+
+  // ══════════════════════════════════════════════════════════════
+  //  TASK PROVIDER (lc3tools)
+  // ══════════════════════════════════════════════════════════════
+
+  const taskProvider = vscode.tasks.registerTaskProvider("lc3", lc3TaskProvider);
+
+  // ══════════════════════════════════════════════════════════════
+  //  HONOR-CODE FIRST-SAVE HOOK (off by default)
+  // ══════════════════════════════════════════════════════════════
+
+  const honorCodeHook = registerHonorCodePromptHook(context);
+
   context.subscriptions.push(
     hoverProvider,
     completionProvider,
@@ -300,15 +355,21 @@ export function activate(context: vscode.ExtensionContext) {
     diagnosticCollection,
     symbolProvider,
     definitionProvider,
-    referenceProvider
+    referenceProvider,
+    newLabFile,
+    assemble,
+    run,
+    honorCode,
+    taskProvider,
+    honorCodeHook
   );
 }
 
 export function deactivate() {}
 
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 //  HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 
 function formatInstructionHover(info: InstructionInfo): vscode.MarkdownString {
   const md = new vscode.MarkdownString();

@@ -6,6 +6,8 @@ import {
   parseLine,
   parseImmediate,
 } from "./parser";
+import { layoutProgram, pcRelativeOffset } from "./addressLayout";
+import { fitsSigned, signedRange } from "./numericHoverUtils";
 
 /**
  * LC-3 Diagnostics Provider
@@ -133,6 +135,13 @@ export function createDiagnostics(
     }
   }
 
+  // PC-relative offset range check (warning level — lc3as will still
+  // catch these at assemble time; the diagnostic just surfaces them
+  // earlier so students see *why* the offset doesn't fit).
+  if (config.get<boolean>("warnPCRelativeOverflow", true)) {
+    checkPCRelativeOffsets(lines, document, diagnostics);
+  }
+
   // Warn about unused labels (optional)
   if (config.get<boolean>("warnUnusedLabels", true)) {
     for (const [label, lineIdx] of definedLabels) {
@@ -149,7 +158,7 @@ export function createDiagnostics(
   collection.set(document.uri, diagnostics);
 }
 
-// ── Validation helpers ──────────────────────────────────────────────
+// ── Validation helpers ──────────────────────────────────────────────────
 
 function validateALU(line: ParsedLine, diags: vscode.Diagnostic[], doc: vscode.TextDocument) {
   const op = line.opcode!.toUpperCase();
@@ -270,7 +279,47 @@ function addDiag(
   diags.push(new vscode.Diagnostic(range, message, severity));
 }
 
-// ── Line parser (delegates to parser.ts) ────────────────────────────
+// Instructions whose label operand is PC-relative-9.
+const PCREL9 = new Set([
+  "BR", "BRN", "BRZ", "BRP", "BRNZ", "BRNP", "BRZP", "BRNZP",
+  "LD", "LDI", "LEA", "ST", "STI",
+]);
+
+function checkPCRelativeOffsets(
+  lines: ParsedLine[],
+  doc: vscode.TextDocument,
+  diags: vscode.Diagnostic[]
+) {
+  const layout = layoutProgram(lines);
+  for (const entry of layout.instructions) {
+    const op = entry.parsed.opcode?.toUpperCase();
+    if (!op) continue;
+
+    const isPCRel9 = PCREL9.has(op);
+    const isJSR = op === "JSR";
+    if (!isPCRel9 && !isJSR) continue;
+
+    // The label is the LAST operand (BR has 1, LD/ST/etc. have 2).
+    const labelTok = entry.parsed.operands[entry.parsed.operands.length - 1]?.trim();
+    if (!labelTok) continue;
+    const target = layout.labels.get(labelTok.toUpperCase());
+    if (target === undefined) continue; // undefined-label diagnostic handled elsewhere
+
+    const offset = pcRelativeOffset(entry.address, target);
+    const bits = isJSR ? 11 : 9;
+    if (!fitsSigned(offset, bits)) {
+      addDiag(
+        diags,
+        doc,
+        entry.lineIndex,
+        `PC-relative offset to "${labelTok}" is ${offset}, which won't fit in ${bits} bits (range ${signedRange(bits)}). The assembler will reject this; consider an indirect jump (JMP via a register) or moving the label closer.`,
+        vscode.DiagnosticSeverity.Warning
+      );
+    }
+  }
+}
+
+// ── Line parser (delegates to parser.ts) ────────────────────────────────────────
 
 function parseAllLines(doc: vscode.TextDocument): ParsedLine[] {
   const results: ParsedLine[] = [];
