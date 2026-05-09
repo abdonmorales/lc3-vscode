@@ -2,46 +2,67 @@ import * as vscode from "vscode";
 import { isNewer, shouldCheckToday, recordCheckDate } from "./updateCheckerUtils";
 
 // ═══════════════════════════════════════════════════════════════════
-//  OPTION 1 (ACTIVE) — GitHub Releases update checker
+//  UT-INTERNAL UPDATE CHECKER
 //
-//  On activation, fetches the latest release from GitHub once per
-//  calendar day. If a newer version is available, shows a VS Code
-//  information message with a "Download" button.
+//  The public extension polls the GitHub Releases API for new versions.
+//  The internal UT Austin / ECE 306 build is not on GitHub Releases —
+//  it lives behind the course's CS webpage:
 //
-//  No infrastructure required — GitHub Releases is the source of
-//  truth. User still installs manually; this is a nudge, not a
-//  silent auto-install.
+//      https://www.cs.utexas.edu/~abdonm/lc3-extension.html
+//
+//  So instead of GitHub, we poll a tiny static JSON manifest hosted on
+//  the same CS page. Format:
+//
+//      {
+//        "version": "1.0.3",
+//        "url": "https://www.cs.utexas.edu/~abdonm/lc3-extension.html"
+//      }
+//
+//  Throttled to one check per calendar day, fails silently on network
+//  error. Exactly the same UX as the public version — only the source
+//  of truth changes.
 // ═══════════════════════════════════════════════════════════════════
 
-const RELEASES_API = "https://api.github.com/repos/abdonmorales/lc3-vscode/releases/latest";
+const MANIFEST_URL = "https://www.cs.utexas.edu/~abdonm/lc3-extension.json";
+const DOWNLOAD_PAGE = "https://www.cs.utexas.edu/~abdonm/lc3-extension.html";
+const EXTENSION_ID = "ece306.lc3-assembly-ut";
+
+interface UpdateManifest {
+    version?: string;
+    url?: string;
+}
 
 /**
- * Fetch the latest release tag from GitHub and return the version string,
- * or null if the request fails for any reason.
+ * Fetch the latest version manifest from the CS webpage and return the
+ * version string, or null on any failure (network error, malformed JSON,
+ * missing field). The "fail-silent" behavior is intentional — students
+ * on flaky campus Wi-Fi shouldn't see error popups every activation.
  */
 export async function fetchLatestVersion(): Promise<string | null> {
     try {
-        const response = await fetch(RELEASES_API, {
-            headers: { "User-Agent": "lc3-vscode-update-checker" },
+        const response = await fetch(MANIFEST_URL, {
+            headers: { "User-Agent": "lc3-vscode-ut-update-checker" },
         });
         if (!response.ok) return null;
-        const data = await response.json() as { tag_name?: string };
-        if (!data.tag_name) return null;
-        return data.tag_name.replace(/^v/, ""); // strip leading "v"
+        const data = (await response.json()) as UpdateManifest;
+        if (!data.version) return null;
+        return data.version.replace(/^v/, "");
     } catch {
         return null;
     }
 }
 
 /**
- * Main entry point — call this from activate().
- * Checks once per day; silently skips on network failure.
+ * Main entry point — call from activate(). Checks once per day and
+ * shows a notification if the CS webpage is advertising a newer build.
+ * The "Download" button opens the course page (not the .vsix directly),
+ * so students see install instructions in context.
  */
 export async function checkForUpdates(context: vscode.ExtensionContext): Promise<void> {
     if (!shouldCheckToday(context.globalState)) return;
     await recordCheckDate(context.globalState);
 
-    const ext = vscode.extensions.getExtension("ece306.lc3-assembly");
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
     if (!ext) return;
     const current: string = ext.packageJSON.version;
 
@@ -50,62 +71,12 @@ export async function checkForUpdates(context: vscode.ExtensionContext): Promise
 
     if (isNewer(current, latest)) {
         const choice = await vscode.window.showInformationMessage(
-            `LC-3 Assembly: update available (v${latest})`,
-            "Download",
+            `LC-3 Assembly (UT Austin): update available (v${latest})`,
+            "Open Download Page",
             "Dismiss"
         );
-        if (choice === "Download") {
-            vscode.env.openExternal(
-                vscode.Uri.parse("https://github.com/abdonmorales/lc3-vscode/releases/latest")
-            );
+        if (choice === "Open Download Page") {
+            vscode.env.openExternal(vscode.Uri.parse(DOWNLOAD_PAGE));
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════════════════
-//  OPTION 2 (DEAD CODE) — Private Extension Registry
-//
-//  Hosts a custom registry that speaks the VS Code Marketplace API,
-//  enabling native auto-updates without publishing publicly.
-//
-//  To activate:
-//    1. Stand up a server (e.g. Gitea package registry, or the
-//       open-source "code-marketplace" project) on your UTCS host.
-//    2. Uncomment the settings snippet below and distribute it to
-//       students via a managed settings file or onboarding script.
-//    3. Remove Option 1's checkForUpdates call from extension.ts —
-//       VS Code will handle updates natively once the registry is
-//       configured.
-//
-//  Student VS Code settings.json entry:
-//  ─────────────────────────────────────────────────────────────────
-//  "extensions.galleries": [
-//    {
-//      "name": "UT Internal",
-//      "apiUrl": "https://www.cs.utexas.edu/~abdonm/vscode/gallery",
-//      "itemUrl": "https://www.cs.utexas.edu/~abdonm/vscode/item"
-//    }
-//  ]
-//  ─────────────────────────────────────────────────────────────────
-//
-//  Relevant projects:
-//    - https://github.com/cdr/code-marketplace
-//    - https://gitea.io (has a built-in VS Code extension registry)
-//
-// export async function configurePrivateRegistry(): Promise<void> {
-//     // No extension-side code needed — configuration is purely in
-//     // the user's VS Code settings and the server infrastructure.
-//     // This stub is a placeholder for any future registry health
-//     // checks or fallback logic you might want to add.
-// }
-
-// ═══════════════════════════════════════════════════════════════════
-//  OPTION 3 (ACTIVE via release.yml) — Open VSX Registry
-//
-//  Published automatically by the "Publish to Open VSX" step in
-//  .github/workflows/release.yml when an OVSX_PAT repo secret is set.
-//  Students on VSCodium (or VS Code pointed at Open VSX) get native
-//  auto-updates; everyone else falls back to Option 1's nudge.
-//
-//  Docs: https://github.com/eclipse/openvsx/wiki/Publishing-Extensions
-//

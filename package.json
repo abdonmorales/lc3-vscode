@@ -1,7 +1,7 @@
 {
-  "name": "lc3-assembly",
-  "displayName": "LC-3 Assembly Language",
-  "description": "Full-featured LC-3 assembly language support: syntax highlighting, hover docs, autocomplete, diagnostics, and snippets — based on the Patt & Patel textbook ISA.",
+  "name": "lc3-assembly-ut",
+  "displayName": "LC-3 Assembly (UT Austin · ECE 306)",
+  "description": "UT Austin internal build of the LC-3 assembly extension for ECE 306. Adds course-specific lab templates, textbook snippets, device-register helpers, sign-extension visualization, lc3tools tasks, and instructor tooling. Distributed via https://www.cs.utexas.edu/~abdonm/lc3-extension.html.",
   "version": "1.0.2",
   "publisher": "ece306",
   "engines": {
@@ -18,8 +18,11 @@
     "lc3",
     "assembly",
     "ece306",
+    "ut-austin",
+    "the-university-of-texas-at-austin",
     "patt",
-    "computer architecture"
+    "patel",
+    "computer-architecture"
   ],
   "activationEvents": [
     "onLanguage:lc3"
