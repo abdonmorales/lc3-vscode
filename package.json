@@ -73,6 +73,15 @@
         }
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "lc3MemoryMap",
+          "name": "LC-3 Memory Map",
+          "when": "editorLangId == lc3"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "lc3",
