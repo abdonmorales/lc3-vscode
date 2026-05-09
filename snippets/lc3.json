@@ -1,4 +1,29 @@
 {
+  "ECE 306 Lab Header": {
+    "prefix": "ece306_lab",
+    "body": [
+      ";==============================================================",
+      "; ECE 306 — The University of Texas at Austin",
+      "; Name:        ${1:Last, First}",
+      "; UT EID:      ${2:abc1234}",
+      "; Lab/Assignment: ${3:Lab N}",
+      "; Date:        ${4:YYYY-MM-DD}",
+      ";",
+      "; Description: ${5:What this program does}",
+      ";==============================================================",
+      "",
+      ".ORIG ${6:x3000}",
+      "",
+      "${0:; Your code here}",
+      "",
+      "HALT",
+      "",
+      "; ─── Data section ─────────────────────────────────────────────",
+      "",
+      ".END"
+    ],
+    "description": "ECE 306 lab file header with name/EID/assignment fields"
+  },
   "Program Template": {
     "prefix": "program",
     "body": [
@@ -189,5 +214,143 @@
       "NOT ${2}, ${2}"
     ],
     "description": "Bitwise OR using De Morgan's law: NOT(NOT a AND NOT b)"
+  },
+  "Count Occurrences": {
+    "prefix": "count_occurrences",
+    "body": [
+      "; Count how many times ${1:R1} (target) appears in the array at ${2:R0}",
+      "; until a sentinel of zero is reached. Result accumulates in ${3:R2}.",
+      "; (Patt & Patel §6.5 idiom — common ECE 306 lab pattern.)",
+      "AND ${3}, ${3}, #0          ; counter = 0",
+      "${4:CO_LOOP} LDR ${5:R3}, ${2}, #0  ; load array element",
+      "     BRz ${6:CO_DONE}        ; sentinel reached",
+      "     NOT ${7:R4}, ${1}",
+      "     ADD ${7}, ${7}, #1      ; ${7} = -target",
+      "     ADD ${7}, ${7}, ${5}    ; element - target",
+      "     BRnp ${8:CO_NEXT}       ; not equal, skip increment",
+      "     ADD ${3}, ${3}, #1      ; match: counter++",
+      "${8} ADD ${2}, ${2}, #1      ; pointer++",
+      "     BRnzp ${4}",
+      "${6} ${0}"
+    ],
+    "description": "Count occurrences of a value in a sentinel-terminated array (textbook §6.5)"
+  },
+  "String Length": {
+    "prefix": "strlen",
+    "body": [
+      "; ${2:R1} = length of null-terminated string at ${1:R0}",
+      "AND ${2}, ${2}, #0           ; length = 0",
+      "${3:SL_LOOP} LDR ${4:R2}, ${1}, #0",
+      "     BRz ${5:SL_DONE}        ; null terminator",
+      "     ADD ${2}, ${2}, #1",
+      "     ADD ${1}, ${1}, #1",
+      "     BRnzp ${3}",
+      "${5} ${0}"
+    ],
+    "description": "Compute length of a null-terminated (.STRINGZ) string"
+  },
+  "Array Sum": {
+    "prefix": "array_sum",
+    "body": [
+      "; Sum N consecutive words starting at ${1:R0}.  N is in ${2:R1}.",
+      "; Result accumulates in ${3:R2}.",
+      "AND ${3}, ${3}, #0           ; sum = 0",
+      "${4:AS_LOOP} ADD ${2}, ${2}, #0   ; test count",
+      "     BRz ${5:AS_DONE}",
+      "     LDR ${6:R3}, ${1}, #0   ; load element",
+      "     ADD ${3}, ${3}, ${6}    ; sum += element",
+      "     ADD ${1}, ${1}, #1      ; pointer++",
+      "     ADD ${2}, ${2}, #-1     ; count--",
+      "     BRnzp ${4}",
+      "${5} ${0}"
+    ],
+    "description": "Sum the first N elements of an array"
+  },
+  "Population Count (popcount)": {
+    "prefix": "popcount",
+    "body": [
+      "; Count the number of 1-bits in ${1:R0}. Result in ${2:R1}.",
+      "; Iterates 16 times, shifting left by self-add and testing the sign bit.",
+      "AND ${2}, ${2}, #0           ; count = 0",
+      "AND ${3:R2}, ${3}, #0",
+      "ADD ${3}, ${3}, #${4:16}     ; iterations",
+      "${5:PC_LOOP} ADD ${1}, ${1}, ${1}    ; shift left, MSB → CC",
+      "     BRzp ${6:PC_SKIP}        ; if old MSB was 0, skip",
+      "     ADD ${2}, ${2}, #1       ; else count++",
+      "${6} ADD ${3}, ${3}, #-1",
+      "     BRp ${5}",
+      "${0}"
+    ],
+    "description": "Count set bits (population count) in a 16-bit register"
+  },
+  "Read Decimal from Keyboard": {
+    "prefix": "read_decimal",
+    "body": [
+      "; Read a positive decimal integer typed by the user (terminated by Enter).",
+      "; Result in ${1:R0}. Uses GETC/OUT and ASCII '0' = x30.",
+      "AND ${1}, ${1}, #0           ; result = 0",
+      "AND ${2:R3}, ${2}, #0",
+      "ADD ${2}, ${2}, #${3:10}     ; multiplier (base 10)",
+      "${4:RD_LOOP} GETC                  ; read char into R0_in",
+      "     OUT                      ; echo",
+      "     ADD ${5:R1}, R0, #-10    ; R0 - 10 (newline)",
+      "     BRz ${6:RD_DONE}",
+      "     ; convert ASCII digit to value: ch - '0' = ch - x30",
+      "     LD ${7:R2}, RD_NEG_ZERO",
+      "     ADD R0, R0, ${7}         ; R0 = digit value",
+      "     ; result = result*10 + digit  (multiply by repeated addition)",
+      "     ADD ${5}, ${1}, #0       ; save current result",
+      "     AND ${1}, ${1}, #0",
+      "     AND ${2:R3}, ${2}, #0",
+      "     ADD ${2:R3}, ${2:R3}, #${3}",
+      "${8:RD_MUL} ADD ${1}, ${1}, ${5}",
+      "     ADD ${2:R3}, ${2:R3}, #-1",
+      "     BRp ${8}",
+      "     ADD ${1}, ${1}, R0       ; + new digit",
+      "     BRnzp ${4}",
+      "${6} ${0:; result is in ${1}}",
+      "RD_NEG_ZERO .FILL #-48           ; -('0') for ASCII conversion"
+    ],
+    "description": "Read a positive decimal integer typed at the keyboard (terminated by Enter)"
+  },
+  "Print Decimal Number": {
+    "prefix": "print_decimal",
+    "body": [
+      "; Print the unsigned value in ${1:R0} as decimal (max 5 digits).",
+      "; Uses repeated subtraction by powers of 10.",
+      "; Caller must save R0-R4, R7 if needed.",
+      "LEA ${2:R1}, PD_TABLE        ; pointer to powers of 10",
+      "AND ${3:R3}, ${3}, #0        ; leading-zero suppress flag",
+      "${4:PD_DIGIT} LDR ${5:R2}, ${2}, #0",
+      "     BRz ${6:PD_LAST}        ; table sentinel: last digit",
+      "     AND ${7:R4}, ${7}, #0   ; digit = 0",
+      "${8:PD_SUB} NOT ${9:R5}, ${5}",
+      "     ADD ${9}, ${9}, #1      ; ${9} = -power",
+      "     ADD ${1}, ${1}, ${9}",
+      "     BRn ${10:PD_RESTORE}    ; went negative — undo",
+      "     ADD ${7}, ${7}, #1",
+      "     BRnzp ${8}",
+      "${10} ADD ${1}, ${1}, ${5}   ; restore (since we over-subtracted)",
+      "     ; emit digit (skip leading zeros)",
+      "     ADD ${3}, ${3}, ${7}    ; flag |= digit",
+      "     BRz ${11:PD_NEXT}       ; still all zeros — skip",
+      "     ADD R0, ${7}, #16",
+      "     ADD R0, R0, #16",
+      "     ADD R0, R0, #16         ; +48 = ASCII '0'",
+      "     OUT",
+      "${11} ADD ${2}, ${2}, #1",
+      "     BRnzp ${4}",
+      "${6} ADD R0, ${1}, #16       ; final digit (always print)",
+      "     ADD R0, R0, #16",
+      "     ADD R0, R0, #16",
+      "     OUT",
+      "${0}",
+      "PD_TABLE .FILL #10000",
+      "         .FILL #1000",
+      "         .FILL #100",
+      "         .FILL #10",
+      "         .FILL #0              ; sentinel"
+    ],
+    "description": "Print an unsigned integer as decimal digits (textbook §10 idiom)"
   }
 }
