@@ -77,6 +77,29 @@ LOOP ADD R0, R0, #-1
 `.trim());
         assert.strictEqual(r.labels.get("LOOP"), 0x3000);
     });
+
+    it("sizes a .STRINGZ containing a semicolon correctly", () => {
+        const r = layout(`
+.ORIG x3000
+MSG .STRINGZ "hi; there"
+AFTER ADD R0, R0, #0
+.END
+`.trim());
+        // "hi; there" is 9 chars + null terminator = 10 words
+        assert.strictEqual(r.labels.get("AFTER"), 0x300A);
+    });
+
+    it("records a colon-terminated label under its bare name", () => {
+        const r = layout(`
+.ORIG x3000
+START: ADD R0, R0, #0
+LOOP:  ADD R0, R0, #-1
+       BRp LOOP
+.END
+`.trim());
+        assert.strictEqual(r.labels.get("LOOP"), 0x3001);
+        assert.strictEqual(r.labels.has("LOOP:"), false);
+    });
 });
 
 describe("pcRelativeOffset", () => {

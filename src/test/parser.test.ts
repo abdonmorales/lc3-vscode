@@ -7,6 +7,7 @@ import {
   validateALUOperands,
   validateOffset6,
   validateTrapVector,
+  isLabelReference,
 } from "../parser";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -123,6 +124,48 @@ describe("parseLine", () => {
     const result = parseLine(".END", 50);
     assert.strictEqual(result.opcode, ".END");
     assert.deepStrictEqual(result.operands, []);
+  });
+
+  it("treats labels starting with BR as labels, not branch opcodes", () => {
+    for (const name of ["BREAK", "BROKEN", "bravo", "BRIDGE"]) {
+      const result = parseLine(`${name} ADD R0, R0, #1`, 0);
+      assert.strictEqual(result.label, name);
+      assert.strictEqual(result.opcode, "ADD");
+      assert.deepStrictEqual(result.operands, ["R0", "R0", "#1"]);
+    }
+    const standalone = parseLine("BREAK", 0);
+    assert.strictEqual(standalone.label, "BREAK");
+    assert.strictEqual(standalone.opcode, undefined);
+  });
+
+  it("still parses every BR variant as an opcode", () => {
+    for (const br of ["BR", "BRn", "BRz", "BRp", "BRnz", "BRnp", "BRzp", "brnzp"]) {
+      const result = parseLine(`${br} LOOP`, 0);
+      assert.strictEqual(result.opcode, br);
+      assert.strictEqual(result.label, undefined);
+      const labelled = parseLine(`L1 ${br} LOOP`, 0);
+      assert.strictEqual(labelled.label, "L1");
+      assert.strictEqual(labelled.opcode, br);
+    }
+  });
+
+  it("keeps a semicolon inside a .STRINGZ string", () => {
+    const result = parseLine('MSG .STRINGZ "hi; there" ; real comment', 0);
+    assert.strictEqual(result.label, "MSG");
+    assert.strictEqual(result.opcode, ".STRINGZ");
+    assert.deepStrictEqual(result.operands, ['"hi; there"']);
+  });
+
+  it("strips a trailing colon from a label (lc3tools treats ':' as a delimiter)", () => {
+    const withOp = parseLine("LOOP:   ADD R0, R0, #-1", 0);
+    assert.strictEqual(withOp.label, "LOOP");
+    assert.strictEqual(withOp.opcode, "ADD");
+    const alone = parseLine("DONE:", 0);
+    assert.strictEqual(alone.label, "DONE");
+    const str = parseLine('MSG: .STRINGZ "hi"', 0);
+    assert.strictEqual(str.label, "MSG");
+    assert.strictEqual(str.opcode, ".STRINGZ");
+    assert.deepStrictEqual(str.operands, ['"hi"']);
   });
 });
 
@@ -308,5 +351,23 @@ describe("validateTrapVector", () => {
   it("rejects out-of-range trap vectors", () => {
     assert.ok(validateTrapVector("x100").length > 0);
     assert.ok(validateTrapVector("#256").length > 0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  isLabelReference
+// ═══════════════════════════════════════════════════════════════════
+
+describe("isLabelReference", () => {
+  it("treats labels starting with X, B or R as label references", () => {
+    for (const t of ["XCOORD", "BUFFER", "BASE", "RESULT", "bad", "xyz"]) {
+      assert.strictEqual(isLabelReference(t), true, t);
+    }
+  });
+
+  it("does not treat registers, literals or strings as label references", () => {
+    for (const t of ["R0", "r7", "#5", "#-3", "x3000", "xFACE", "x-5", "b1010", "B101", "10", "-1", '"hi"', ""]) {
+      assert.strictEqual(isLabelReference(t), false, t);
+    }
   });
 });

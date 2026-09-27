@@ -12,6 +12,7 @@ import { checkForUpdates } from "./updateChecker";
 import { DEVICE_REGISTERS, lookupDeviceRegister } from "./deviceRegisters";
 import { parseImmediate } from "./parser";
 import { formatNumericLiteralHover } from "./numericHover";
+import { isStandaloneToken } from "./numericHoverUtils";
 import { newLabFileCommand } from "./labTemplate";
 import { lc3TaskProvider, assembleCommand, runCommand } from "./lc3toolsTasks";
 import { toggleHonorCodeCommand, registerHonorCodePromptHook } from "./honorCode";
@@ -35,7 +36,14 @@ export function activate(context: vscode.ExtensionContext) {
       // 1. Numeric immediate at cursor (e.g. #-7, x3000, b1010) — show
       //    decimal/hex/binary breakdown plus encoding-field fit checks.
       const immRange = document.getWordRangeAtPosition(position, IMMEDIATE_PATTERN);
-      if (immRange) {
+      if (
+        immRange &&
+        isStandaloneToken(
+          document.lineAt(position.line).text,
+          immRange.start.character,
+          immRange.end.character
+        )
+      ) {
         const tok = document.getText(immRange);
         const val = parseImmediate(tok);
         if (val !== null) {

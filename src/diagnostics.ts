@@ -5,6 +5,7 @@ import {
   ParsedLine,
   parseLine,
   parseImmediate,
+  isLabelReference,
 } from "./parser";
 import { layoutProgram, pcRelativeOffset } from "./addressLayout";
 import { fitsSigned, signedRange } from "./numericHoverUtils";
@@ -54,18 +55,8 @@ export function createDiagnostics(
 
     // Track label references in operands
     for (const operand of line.operands) {
-      const trimmed = operand.trim().toUpperCase();
-      if (
-        trimmed &&
-        !trimmed.startsWith("R") &&
-        !trimmed.startsWith("#") &&
-        !trimmed.startsWith("X") &&
-        !trimmed.startsWith("B") &&
-        !trimmed.startsWith("-") &&
-        !trimmed.startsWith("\"") &&
-        !/^[0-9]/.test(trimmed)
-      ) {
-        referencedLabels.add(trimmed);
+      if (isLabelReference(operand)) {
+        referencedLabels.add(operand.trim().toUpperCase());
       }
     }
 

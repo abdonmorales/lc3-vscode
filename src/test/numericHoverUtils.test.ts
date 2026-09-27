@@ -9,6 +9,7 @@ import {
     signedRange,
     analyzeNumericLiteral,
     renderNumericHoverMarkdown,
+    isStandaloneToken,
 } from "../numericHoverUtils";
 
 describe("toU16 / toS16", () => {
@@ -94,5 +95,24 @@ describe("renderNumericHoverMarkdown", () => {
         assert.match(md, /#-7/);
         assert.match(md, /imm5/);
         assert.match(md, /PCoffset9/);
+    });
+});
+
+describe("isStandaloneToken", () => {
+    it("accepts a literal that is a whole operand", () => {
+        const line = "  LD R0, x3000 ; load";
+        const start = line.indexOf("x3000");
+        assert.ok(isStandaloneToken(line, start, start + 5));
+        const imm = "ADD R1, R1,#-7";
+        assert.ok(isStandaloneToken(imm, imm.indexOf("#"), imm.length));
+    });
+
+    it("rejects a literal-looking fragment inside a longer label", () => {
+        const line = "  LD R0, XCOORD";
+        const start = line.indexOf("XC");
+        assert.ok(!isStandaloneToken(line, start, start + 2)); // "XC" of XCOORD
+        const tab = "  BRz TAB1";
+        const b = tab.indexOf("B1");
+        assert.ok(!isStandaloneToken(tab, b, b + 2)); // "B1" of TAB1
     });
 });

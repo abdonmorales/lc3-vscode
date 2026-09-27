@@ -27,8 +27,17 @@ export interface ParsedLine {
  * Parse a single line of LC-3 assembly into its components.
  */
 export function parseLine(raw: string, lineIndex: number): ParsedLine {
-  // Remove comment
-  const commentIdx = raw.indexOf(";");
+  // Remove comment. A ';' inside a double-quoted .STRINGZ string is not a
+  // comment (same rule as the lc3tools tokenizer).
+  let commentIdx = -1;
+  let inString = false;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === '"') inString = !inString;
+    if (raw[i] === ";" && !inString) {
+      commentIdx = i;
+      break;
+    }
+  }
   let code = commentIdx >= 0 ? raw.substring(0, commentIdx) : raw;
   code = code.trim();
 
@@ -39,7 +48,7 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
   let operands: string[] = [];
 
   // Handle .STRINGZ specially (operand is a quoted string)
-  const stringzMatch = code.match(/^([A-Za-z_]\w*)?\s*(\.\s*STRINGZ)\s+(.*)/i);
+  const stringzMatch = code.match(/^(?:([A-Za-z_]\w*):?)?\s*(\.\s*STRINGZ)\s+(.*)/i);
   if (stringzMatch) {
     label = stringzMatch[1] || undefined;
     opcode = ".STRINGZ";
@@ -55,16 +64,17 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
 
   // Check if first token is a pseudo-op, opcode, or label
   const first = tokens[0].toUpperCase();
-  if (first.startsWith(".") || VALID_OPCODES.has(first) || first.startsWith("BR")) {
+  if (first.startsWith(".") || VALID_OPCODES.has(first)) {
     opcode = tokens[0];
     idx = 1;
   } else {
-    // First token is a label
-    label = tokens[0];
+    // First token is a label. lc3tools treats ':' as a delimiter, so
+    // "LOOP:" defines LOOP.
+    label = tokens[0].replace(/:$/, "");
     idx = 1;
     if (idx < tokens.length) {
       const second = tokens[idx].toUpperCase();
-      if (second.startsWith(".") || VALID_OPCODES.has(second) || second.startsWith("BR")) {
+      if (second.startsWith(".") || VALID_OPCODES.has(second)) {
         opcode = tokens[idx];
         idx++;
       }
@@ -102,6 +112,20 @@ export function parseImmediate(token: string): number | null {
   }
   const v = parseInt(t, 10);
   return isNaN(v) ? null : v;
+}
+
+/**
+ * Check if an operand could be a label reference, i.e. it is not a
+ * register, a numeric literal (#n, xN, bN, plain decimal) or a string.
+ * Labels such as XCOORD, BUFFER or RESULT are references even though
+ * they start with a literal/register prefix letter.
+ */
+export function isLabelReference(token: string): boolean {
+  const t = token.trim();
+  if (!t || t.startsWith("\"") || t.startsWith("#") || t.startsWith("-") || /^[0-9]/.test(t)) {
+    return false;
+  }
+  return !/^R[0-9]+$/i.test(t) && !/^x-?[0-9A-F]+$/i.test(t) && !/^b-?[01]+$/i.test(t);
 }
 
 /**

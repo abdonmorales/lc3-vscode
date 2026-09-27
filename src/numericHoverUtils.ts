@@ -114,3 +114,13 @@ export function renderNumericHoverMarkdown(a: NumericLiteralAnalysis): string {
         `| PCoffset11 | ${signedRange(11)} | JSR | ${fitMark(a.fits.pcOffset11)} |`,
     ].join("\n");
 }
+
+/**
+ * Whether `line[start, end)` is a whole token rather than a fragment of a
+ * longer identifier — e.g. the "XC" in `XCOORD` or the "B1" in `TAB1`
+ * look like literals but are part of a label.
+ */
+export function isStandaloneToken(line: string, start: number, end: number): boolean {
+    const isWordChar = (c: string | undefined) => c !== undefined && /\w/.test(c);
+    return !isWordChar(line[start - 1]) && !isWordChar(line[end]);
+}
