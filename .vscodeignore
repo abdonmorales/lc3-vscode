@@ -12,3 +12,6 @@ README.md.bkp
 **/*.ts
 **/*.map
 **/*.vsix
+# Instructor-only tooling and docs — not shipped to students.
+tools/**
+docs/**

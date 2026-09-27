@@ -127,7 +127,7 @@
         "lc3.diagnostics.warnPCRelativeOverflow": {
           "type": "boolean",
           "default": true,
-          "description": "Warn when a BR/LD/LDI/LEA/ST/STI/JSR target is too far away to fit in the PC-relative offset field. (Off-by-default to defer to lc3as if you prefer that workflow.)"
+          "description": "Warn when a BR/LD/LDI/LEA/ST/STI/JSR target is too far away to fit in the PC-relative offset field. Turn off to defer to lc3as for these errors."
         },
         "lc3.hover.showEncoding": {
           "type": "boolean",
