@@ -10,7 +10,7 @@ import {
 import { createDiagnostics } from "./diagnostics";
 import { checkForUpdates } from "./updateChecker";
 import { DEVICE_REGISTERS, lookupDeviceRegister } from "./deviceRegisters";
-import { parseImmediate } from "./parser";
+import { parseImmediate, parseLine, stripComment } from "./parser";
 import { formatNumericLiteralHover } from "./numericHover";
 import { isStandaloneToken } from "./numericHoverUtils";
 import { newLabFileCommand } from "./labTemplate";
@@ -140,16 +140,15 @@ export function activate(context: vscode.ExtensionContext) {
           items.push(item);
         }
         for (let i = 0; i < document.lineCount; i++) {
-          const line = document.lineAt(i).text;
-          const match = line.match(/^([A-Za-z_]\w*)\s/);
-          if (match) {
-            const labelName = match[1].toUpperCase();
+          const parsedLabel = parseLine(document.lineAt(i).text, i).label;
+          if (parsedLabel) {
+            const labelName = parsedLabel.toUpperCase();
             if (
               !Object.keys(LC3_INSTRUCTIONS).includes(labelName) &&
               !Object.keys(TRAP_ALIASES).includes(labelName) &&
               !Object.keys(BRANCH_VARIANTS).includes(labelName)
             ) {
-              const item = new vscode.CompletionItem(match[1], vscode.CompletionItemKind.Reference);
+              const item = new vscode.CompletionItem(parsedLabel, vscode.CompletionItemKind.Reference);
               item.detail = `Label (line ${i + 1})`;
               items.push(item);
             }
@@ -222,15 +221,16 @@ export function activate(context: vscode.ExtensionContext) {
       const symbols: vscode.DocumentSymbol[] = [];
       for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
-        const match = line.text.match(/^([A-Za-z_]\w*)\s/);
-        if (match) {
-          const name = match[1];
-          const rest = line.text.substring(match[0].length).trim().toUpperCase();
+        const parsed = parseLine(line.text, i);
+        if (parsed.label) {
+          const name = parsed.label;
+          const op = (parsed.opcode ?? "").toUpperCase();
+          const rest = [op, parsed.operands.join(", ")].filter((s) => s).join(" ");
           let kind = vscode.SymbolKind.Function;
-          if (rest.startsWith(".FILL") || rest.startsWith(".BLKW") || rest.startsWith(".STRINGZ")) {
+          if (op === ".FILL" || op === ".BLKW" || op === ".STRINGZ") {
             kind = vscode.SymbolKind.Variable;
           }
-          symbols.push(new vscode.DocumentSymbol(name, rest.split(";")[0].trim(), kind, line.range, line.range));
+          symbols.push(new vscode.DocumentSymbol(name, rest, kind, line.range, line.range));
         }
       }
       return symbols;
@@ -246,8 +246,8 @@ export function activate(context: vscode.ExtensionContext) {
       if (/^R[0-7]$/i.test(word)) return undefined;
       for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
-        const match = line.text.match(/^([A-Za-z_]\w*)\s/);
-        if (match && match[1].toUpperCase() === word.toUpperCase()) {
+        const label = parseLine(line.text, i).label;
+        if (label && label.toUpperCase() === word.toUpperCase()) {
           return new vscode.Location(document.uri, line.range.start);
         }
       }
@@ -266,8 +266,7 @@ export function activate(context: vscode.ExtensionContext) {
       const regex = new RegExp(`\\b${word}\\b`, "gi");
       for (let i = 0; i < document.lineCount; i++) {
         const line = document.lineAt(i);
-        const commentIdx = line.text.indexOf(";");
-        const code = commentIdx >= 0 ? line.text.substring(0, commentIdx) : line.text;
+        const code = stripComment(line.text);
         let match;
         while ((match = regex.exec(code)) !== null) {
           const start = new vscode.Position(i, match.index);

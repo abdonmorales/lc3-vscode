@@ -1,6 +1,7 @@
 import * as assert from "assert";
 import {
   parseLine,
+  stripComment,
   parseAllLines,
   parseImmediate,
   isValidRegister,
@@ -396,5 +397,28 @@ describe("isLabelReference", () => {
     for (const t of ["R0", "r7", "R", "R8", "#5", "#-3", "x3000", "xFACE", "x-5", "b1010", "B101", "10", "-1", '"hi"', ""]) {
       assert.strictEqual(isLabelReference(t), false, t);
     }
+  });
+});
+
+describe("stripComment", () => {
+  it("removes a trailing comment", () => {
+    assert.strictEqual(stripComment("ADD R0, R0, #1 ; bump"), "ADD R0, R0, #1 ");
+  });
+
+  it("keeps a ';' inside a string", () => {
+    assert.strictEqual(stripComment('MSG .STRINGZ "a;b" ; note'), 'MSG .STRINGZ "a;b" ');
+  });
+
+  it("returns the line unchanged when there is no comment", () => {
+    assert.strictEqual(stripComment("HALT"), "HALT");
+  });
+});
+
+describe("parseLine .STRINGZ label spacing", () => {
+  it("keeps the string whole when the label's colon is space-separated", () => {
+    const p = parseLine('MSG : .STRINGZ "Hello, world!"', 0);
+    assert.strictEqual(p.label, "MSG");
+    assert.strictEqual(p.opcode, ".STRINGZ");
+    assert.deepStrictEqual(p.operands, ['"Hello, world!"']);
   });
 });

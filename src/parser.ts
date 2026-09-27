@@ -24,22 +24,23 @@ export interface ParsedLine {
 }
 
 /**
- * Parse a single line of LC-3 assembly into its components.
+ * Remove a trailing ';' comment. A ';' inside a double-quoted .STRINGZ
+ * string is not a comment (same rule as the lc3tools tokenizer).
  */
-export function parseLine(raw: string, lineIndex: number): ParsedLine {
-  // Remove comment. A ';' inside a double-quoted .STRINGZ string is not a
-  // comment (same rule as the lc3tools tokenizer).
-  let commentIdx = -1;
+export function stripComment(raw: string): string {
   let inString = false;
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === '"') inString = !inString;
-    if (raw[i] === ";" && !inString) {
-      commentIdx = i;
-      break;
-    }
+    if (raw[i] === ";" && !inString) return raw.substring(0, i);
   }
-  let code = commentIdx >= 0 ? raw.substring(0, commentIdx) : raw;
-  code = code.trim();
+  return raw;
+}
+
+/**
+ * Parse a single line of LC-3 assembly into its components.
+ */
+export function parseLine(raw: string, lineIndex: number): ParsedLine {
+  const code = stripComment(raw).trim();
 
   if (!code) return { lineIndex, operands: [], raw };
 
@@ -48,7 +49,7 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
   let operands: string[] = [];
 
   // Handle .STRINGZ specially (operand is a quoted string)
-  const stringzMatch = code.match(/^(?:([A-Za-z_]\w*):*)?\s*(\.\s*STRINGZ)\s+(.*)/i);
+  const stringzMatch = code.match(/^(?:([A-Za-z_]\w*)[\s:]*)?(\.\s*STRINGZ)\s+(.*)/i);
   if (stringzMatch) {
     label = stringzMatch[1] || undefined;
     opcode = ".STRINGZ";
