@@ -89,6 +89,42 @@ AFTER ADD R0, R0, #0
         assert.strictEqual(r.labels.get("AFTER"), 0x300A);
     });
 
+    it("sizes a .STRINGZ whose string runs to end of line like lc3tools", () => {
+        // lc3tools: ';' after \" starts a comment, the string token runs to
+        // EOL as a\", which decodes to a" -> 2 chars + null = 3 words.
+        const r = layout([
+            ".ORIG x3000",
+            'MSG .STRINGZ "a\\"; b"',
+            "AFTER ADD R0, R0, #0",
+            ".END",
+        ].join("\n"));
+        assert.strictEqual(r.labels.get("AFTER"), 0x3003);
+    });
+
+    it("keeps the backslash of an unknown escape, like lc3tools", () => {
+        // "a\qb" -> a, \, q, b = 4 chars + null = 5 words
+        const r = layout([
+            ".ORIG x3000",
+            'MSG .STRINGZ "a\\qb"',
+            "AFTER ADD R0, R0, #0",
+            ".END",
+        ].join("\n"));
+        assert.strictEqual(r.labels.get("AFTER"), 0x3005);
+    });
+
+    it("resolves colon-suffixed references and colon-glued labels", () => {
+        const r = layout([
+            ".ORIG x3000",
+            "START:ADD R0, R0, #0",
+            "LOOP::  ADD R0, R0, #-1",
+            "        BRp LOOP:",
+            ".END",
+        ].join("\n"));
+        assert.strictEqual(r.labels.get("START"), 0x3000);
+        assert.strictEqual(r.labels.get("LOOP"), 0x3001);
+        assert.deepStrictEqual(r.instructions[2].parsed.operands, ["LOOP"]);
+    });
+
     it("records a colon-terminated label under its bare name", () => {
         const r = layout(`
 .ORIG x3000

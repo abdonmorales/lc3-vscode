@@ -156,6 +156,33 @@ describe("parseLine", () => {
     assert.deepStrictEqual(result.operands, ['"hi; there"']);
   });
 
+  it("matches lc3tools: a \\\" escape does not hide a ';' from comment stripping", () => {
+    // lc3tools' comment scan toggles on every '"', escaped or not, so the
+    // ';' after \" starts a comment and the string runs to end of line.
+    const result = parseLine('MSG .STRINGZ "a\\"; b"', 0);
+    assert.strictEqual(result.opcode, ".STRINGZ");
+    assert.deepStrictEqual(result.operands, ['"a\\"']);
+  });
+
+  it("treats ':' as a delimiter anywhere outside strings", () => {
+    const noSpace = parseLine("LOOP:ADD R0,R0,#1", 0);
+    assert.strictEqual(noSpace.label, "LOOP");
+    assert.strictEqual(noSpace.opcode, "ADD");
+    assert.deepStrictEqual(noSpace.operands, ["R0", "R0", "#1"]);
+    const ref = parseLine("BRp LOOP:", 0);
+    assert.strictEqual(ref.opcode, "BRp");
+    assert.deepStrictEqual(ref.operands, ["LOOP"]);
+    const dbl = parseLine("LOOP:: ADD R0, R0, #1", 0);
+    assert.strictEqual(dbl.label, "LOOP");
+    assert.strictEqual(dbl.opcode, "ADD");
+    const str = parseLine('MSG: .STRINGZ "a:b"', 0);
+    assert.strictEqual(str.label, "MSG");
+    assert.deepStrictEqual(str.operands, ['"a:b"']);
+    const dblStr = parseLine('MSG:: .STRINGZ "a b"', 0);
+    assert.strictEqual(dblStr.label, "MSG");
+    assert.deepStrictEqual(dblStr.operands, ['"a b"']);
+  });
+
   it("strips a trailing colon from a label (lc3tools treats ':' as a delimiter)", () => {
     const withOp = parseLine("LOOP:   ADD R0, R0, #-1", 0);
     assert.strictEqual(withOp.label, "LOOP");
@@ -366,7 +393,7 @@ describe("isLabelReference", () => {
   });
 
   it("does not treat registers, literals or strings as label references", () => {
-    for (const t of ["R0", "r7", "#5", "#-3", "x3000", "xFACE", "x-5", "b1010", "B101", "10", "-1", '"hi"', ""]) {
+    for (const t of ["R0", "r7", "R", "R8", "#5", "#-3", "x3000", "xFACE", "x-5", "b1010", "B101", "10", "-1", '"hi"', ""]) {
       assert.strictEqual(isLabelReference(t), false, t);
     }
   });

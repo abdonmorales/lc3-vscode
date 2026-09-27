@@ -48,7 +48,7 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
   let operands: string[] = [];
 
   // Handle .STRINGZ specially (operand is a quoted string)
-  const stringzMatch = code.match(/^(?:([A-Za-z_]\w*):?)?\s*(\.\s*STRINGZ)\s+(.*)/i);
+  const stringzMatch = code.match(/^(?:([A-Za-z_]\w*):*)?\s*(\.\s*STRINGZ)\s+(.*)/i);
   if (stringzMatch) {
     label = stringzMatch[1] || undefined;
     opcode = ".STRINGZ";
@@ -56,8 +56,8 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
     return { lineIndex, label, opcode, operands, raw };
   }
 
-  // Tokenize
-  const tokens = code.split(/[\s,]+/).filter((t) => t.length > 0);
+  // Tokenize (lc3tools treats ',' ':' space and tab as delimiters)
+  const tokens = code.split(/[\s,:]+/).filter((t) => t.length > 0);
   if (tokens.length === 0) return { lineIndex, operands: [], raw };
 
   let idx = 0;
@@ -68,9 +68,8 @@ export function parseLine(raw: string, lineIndex: number): ParsedLine {
     opcode = tokens[0];
     idx = 1;
   } else {
-    // First token is a label. lc3tools treats ':' as a delimiter, so
-    // "LOOP:" defines LOOP.
-    label = tokens[0].replace(/:$/, "");
+    // First token is a label
+    label = tokens[0];
     idx = 1;
     if (idx < tokens.length) {
       const second = tokens[idx].toUpperCase();
@@ -125,7 +124,7 @@ export function isLabelReference(token: string): boolean {
   if (!t || t.startsWith("\"") || t.startsWith("#") || t.startsWith("-") || /^[0-9]/.test(t)) {
     return false;
   }
-  return !/^R[0-9]+$/i.test(t) && !/^x-?[0-9A-F]+$/i.test(t) && !/^b-?[01]+$/i.test(t);
+  return !/^R[0-9]*$/i.test(t) && !/^x-?[0-9A-F]+$/i.test(t) && !/^b-?[01]+$/i.test(t);
 }
 
 /**

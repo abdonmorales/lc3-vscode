@@ -83,14 +83,15 @@ function entrySize(op: string, line: ParsedLine): number {
         return Number.isFinite(n) && n > 0 ? n : 0;
     }
     if (op === ".STRINGZ") {
-        // operand is the rest-of-line including the quotes
+        // operand is the rest-of-line including the quotes. As in lc3tools,
+        // the string runs to the closing unescaped quote or end of line.
         const raw = line.operands[0] ?? "";
-        const m = raw.match(/^"((?:[^"\\]|\\.)*)"/);
+        const m = raw.match(/^"((?:[^"\\]|\\.)*)/);
         if (!m) return 0;
-        // Each character becomes one word, plus the null terminator. We
-        // don't expand escape sequences — close enough for layout, since
-        // \n / \t / \\ each shrink to one character anyway.
-        const literal = m[1].replace(/\\(.)/g, "$1");
+        // Each character becomes one word, plus the null terminator. The
+        // escapes lc3tools knows (\\ \n \r \t \") shrink to one character;
+        // any other backslash is kept as-is.
+        const literal = m[1].replace(/\\([\\nrt"])/g, "$1");
         return literal.length + 1;
     }
     if (op === ".FILL") return 1;
